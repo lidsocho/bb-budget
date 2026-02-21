@@ -73,7 +73,7 @@ export default function TransactionReview({ data, onUpdate }) {
     setImporting(true);
     try {
       const text = await file.text();
-      const { transactions: newTxns, latestBalance } = await parseCSV(text, selectedAccount);
+      const { transactions: newTxns } = await parseCSV(text, selectedAccount);
       for (const txn of newTxns) {
         const suggestion = suggestCategory(txn.description);
         if (suggestion) txn.category = suggestion;
@@ -81,27 +81,11 @@ export default function TransactionReview({ data, onUpdate }) {
       const existing = new Set(data.transactions.map(t => `${t.date}|${t.amount}|${t.description}`));
       const unique = newTxns.filter(t => !existing.has(`${t.date}|${t.amount}|${t.description}`));
 
-      let updatedSnapshots = [...data.balanceSnapshots];
-      if (latestBalance) {
-        const snapDate = latestBalance.date;
-        const existingSnap = updatedSnapshots.find(s => s.date === snapDate);
-        if (existingSnap) {
-          existingSnap[selectedAccount] = latestBalance.balance;
-        } else {
-          const sorted = [...updatedSnapshots].sort((a, b) => b.date.localeCompare(a.date));
-          const prev = sorted[0] || {};
-          updatedSnapshots.push({
-            id: `snap_${Date.now()}`, date: snapDate,
-            wf_checking: prev.wf_checking || 0, wf_credit: prev.wf_credit || 0,
-            discover_credit: prev.discover_credit || 0, sofi_checking: prev.sofi_checking || 0,
-            sofi_savings: prev.sofi_savings || 0, venmo: prev.venmo || 0,
-            [selectedAccount]: latestBalance.balance,
-          });
-        }
-      }
-      onUpdate({ ...data, transactions: [...data.transactions, ...unique], balanceSnapshots: updatedSnapshots });
-      const balanceMsg = latestBalance ? ` Balance: ${formatCurrency(latestBalance.balance)} on ${latestBalance.date}.` : '';
-      alert(`Imported ${unique.length} new transactions (${newTxns.length - unique.length} dupes skipped).${balanceMsg}`);
+      // Clean any stale auto-snapshots from storage
+      const cleanedSnapshots = data.balanceSnapshots.filter(s => !s.id?.startsWith('snap_auto'));
+
+      onUpdate({ ...data, transactions: [...data.transactions, ...unique], balanceSnapshots: cleanedSnapshots });
+      alert(`Imported ${unique.length} new transactions (${newTxns.length - unique.length} dupes skipped).`);
     } catch (err) {
       alert('Error parsing CSV: ' + err.message);
     } finally {

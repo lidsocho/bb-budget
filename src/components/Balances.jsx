@@ -29,34 +29,32 @@ export default function Balances({ data, onUpdate }) {
     venmo: '',
   });
 
-  const snapshots = useMemo(() => {
-    return [...data.balanceSnapshots].sort((a, b) => b.date.localeCompare(a.date));
+  // Manual snapshots only (exclude auto)
+  const manualSnapshots = useMemo(() => {
+    return data.balanceSnapshots
+      .filter(s => !s.id?.startsWith('snap_auto'))
+      .sort((a, b) => b.date.localeCompare(a.date));
   }, [data.balanceSnapshots]);
 
-  const latest = snapshots[0];
+  const baseSnap = manualSnapshots[0]; // latest manual snapshot
 
-  // Compute current balances: last snapshot + all transactions since
+  // Compute current balances reactively: latest manual snapshot + all transactions since
   const computed = useMemo(() => {
-    if (!latest) return null;
+    if (!baseSnap) return null;
 
-    const snapshotDate = latest.date;
     const result = {};
+    const ACCT_KEYS = Object.keys(ACCT_TO_FIELD);
 
-    for (const acctId of Object.keys(ACCT_TO_FIELD)) {
+    for (const acctId of ACCT_KEYS) {
       const field = ACCT_TO_FIELD[acctId];
-      const snapshotVal = latest[field] || 0;
+      const snapshotVal = baseSnap[field] || 0;
 
-      // Sum all transactions for this account AFTER the snapshot date
       const txnsAfter = data.transactions.filter(
-        t => t.account === acctId && t.date > snapshotDate
+        t => t.account === acctId && t.date > baseSnap.date
       );
       const txnSum = txnsAfter.reduce((s, t) => s + t.amount, 0);
 
       if (CREDIT_ACCOUNTS.has(acctId)) {
-        // Credit cards: snapshot stores amount owed (positive).
-        // Charges come in as negative amounts → increase owed.
-        // Payments come in as positive amounts → decrease owed.
-        // current_owed = snapshot_owed - sum(txns)
         result[acctId] = {
           snapshot: snapshotVal,
           txnDelta: -txnSum,
@@ -65,9 +63,6 @@ export default function Balances({ data, onUpdate }) {
           isCredit: true,
         };
       } else {
-        // Checking/savings: snapshot is balance.
-        // Income/credits are positive, expenses are negative.
-        // current = snapshot + sum(txns)
         result[acctId] = {
           snapshot: snapshotVal,
           txnDelta: txnSum,
@@ -79,7 +74,27 @@ export default function Balances({ data, onUpdate }) {
     }
 
     return result;
-  }, [latest, data.transactions]);
+  }, [baseSnap, data.transactions]);
+
+  // Build full snapshot list for history table (manual + one auto "today" row)
+  const snapshots = useMemo(() => {
+    const manual = data.balanceSnapshots.filter(s => !s.id?.startsWith('snap_auto'));
+    const sorted = [...manual].sort((a, b) => b.date.localeCompare(a.date));
+
+    // Add a computed "today" row if we have a base snapshot
+    if (computed && baseSnap) {
+      const today = new Date().toISOString().slice(0, 10);
+      if (today > baseSnap.date) {
+        const autoSnap = { id: 'snap_auto', date: today, isAuto: true };
+        for (const acctId of Object.keys(ACCT_TO_FIELD)) {
+          autoSnap[ACCT_TO_FIELD[acctId]] = computed[acctId].current;
+        }
+        sorted.unshift(autoSnap);
+      }
+    }
+
+    return sorted;
+  }, [data.balanceSnapshots, computed, baseSnap]);
 
   // Total liquid = sum of checking/savings current balances
   const totalLiquid = useMemo(() => {
@@ -109,7 +124,7 @@ export default function Balances({ data, onUpdate }) {
     };
     onUpdate({
       ...data,
-      balanceSnapshots: [...data.balanceSnapshots, snap],
+      balanceSnapshots: [...data.balanceSnapshots.filter(s => !s.id?.startsWith('snap_auto')), snap],
     });
     setNewSnapshot({
       date: new Date().toISOString().slice(0, 10),
@@ -156,7 +171,7 @@ export default function Balances({ data, onUpdate }) {
           <div className="flex items-center gap-2 text-xs text-stone-400">
             <Info size={12} />
             <span>
-              Computed from snapshot on <span className="font-medium text-stone-500">{latest.date}</span>
+              Computed from snapshot on <span className="font-medium text-stone-500">{baseSnap.date}</span>
               {' '}+ all imported transactions since
             </span>
           </div>
@@ -279,8 +294,11 @@ export default function Balances({ data, onUpdate }) {
               </thead>
               <tbody>
                 {filteredSnaps.map(snap => (
-                  <tr key={snap.id} className="border-b border-stone-50 hover:bg-stone-50">
-                    <td className="p-3 text-sm num text-stone-500">{snap.date}</td>
+                  <tr key={snap.id} className={`border-b border-stone-50 hover:bg-stone-50 ${snap.isAuto ? 'bg-sage-50/50' : ''}`}>
+                    <td className="p-3 text-sm num text-stone-500">
+                      {snap.date}
+                      {snap.isAuto && <span className="ml-1.5 text-[10px] font-medium text-sage-600 bg-sage-100 px-1.5 py-0.5 rounded">computed</span>}
+                    </td>
                     <td className="p-3 text-sm num text-right">{formatCurrency(snap.wf_checking)}</td>
                     <td className="p-3 text-sm num text-right num-neg">{formatCurrency(-(snap.wf_credit || 0))}</td>
                     <td className="p-3 text-sm num text-right num-neg">{formatCurrency(-(snap.discover_credit || 0))}</td>
@@ -289,10 +307,12 @@ export default function Balances({ data, onUpdate }) {
                     <td className="p-3 text-sm num text-right">{formatCurrency(snap.venmo || 0)}</td>
                     <td className="p-3 text-sm num text-right font-semibold">{formatCurrency(getTotal(snap))}</td>
                     <td className="p-3 text-center">
-                      <button onClick={() => deleteSnapshot(snap.id)}
-                        className="p-1 rounded text-stone-300 hover:text-wine-500 hover:bg-wine-50 transition-colors">
-                        <Trash2 size={14} />
-                      </button>
+                      {!snap.isAuto && (
+                        <button onClick={() => deleteSnapshot(snap.id)}
+                          className="p-1 rounded text-stone-300 hover:text-wine-500 hover:bg-wine-50 transition-colors">
+                          <Trash2 size={14} />
+                        </button>
+                      )}
                     </td>
                   </tr>
                 ))}
