@@ -108,29 +108,37 @@ export default function DateRangeFilter({ from, to, onChange, availableMonths })
 
       {/* Month quick-select */}
       {monthOptions.length > 0 && (
-        <select
-          value={preset.startsWith('month_') ? preset.replace('month_', '') : ''}
-          onChange={e => e.target.value && handleMonthSelect(e.target.value)}
-          className="px-2 py-1 border border-stone-200 rounded-lg text-xs bg-white"
-        >
-          <option value="">Pick month...</option>
-          {monthOptions.map(m => (
-            <option key={m.value} value={m.value}>{m.label}</option>
-          ))}
-        </select>
+        <>
+          <label className="sr-only" htmlFor="month-quick-select">Jump to month</label>
+          <select
+            id="month-quick-select"
+            value={preset.startsWith('month_') ? preset.replace('month_', '') : ''}
+            onChange={e => e.target.value && handleMonthSelect(e.target.value)}
+            className="px-2 py-1 border border-stone-200 rounded-lg text-xs bg-white"
+          >
+            <option value="">Pick month...</option>
+            {monthOptions.map(m => (
+              <option key={m.value} value={m.value}>{m.label}</option>
+            ))}
+          </select>
+        </>
       )}
 
       {/* Custom date inputs */}
       {showCustom && (
         <div className="flex items-center gap-1.5">
+          <label className="sr-only" htmlFor="date-from">Start date</label>
           <input
+            id="date-from"
             type="date"
             value={from}
             onChange={e => onChange(e.target.value, to)}
             className="px-2 py-1 border border-stone-200 rounded-lg text-xs"
           />
-          <span className="text-xs text-stone-400">to</span>
+          <span className="text-xs text-stone-500" aria-hidden="true">to</span>
+          <label className="sr-only" htmlFor="date-to">End date</label>
           <input
+            id="date-to"
             type="date"
             value={to}
             onChange={e => onChange(from, e.target.value)}

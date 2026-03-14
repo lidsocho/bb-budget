@@ -15,9 +15,9 @@ const FIXED_SET = new Set([
   'Rent', 'Utilities', 'Internet', 'Storage', 'Subscriptions', 'Insurance', 'Phone',
 ]);
 
-// Color palette — known categories get stable colors, others get assigned from pool
+// Colorblind-safe palette — avoids red-green confusion
 const KNOWN_COLORS = {
-  'Groceries': '#6b7f5c',
+  'Groceries': '#0d7377',
   'Eating Out': '#d4702e',
   'Coffee/Drinks': '#92400e',
   'Coffee': '#92400e',
@@ -26,7 +26,7 @@ const KNOWN_COLORS = {
   'Car Care': '#44403c',
   'Travel': '#2563eb',
   'Doctors/Health': '#c92250',
-  'Fitness/Wellness': '#059669',
+  'Fitness/Wellness': '#0891b2',
   'Home/Cat/Shipping': '#8f9e82',
   'Alcohol/Snacks/Entertainment': '#a855f7',
   'Clothing/Beauty': '#ec4899',
@@ -40,7 +40,7 @@ const KNOWN_COLORS = {
   'Art Exhibit': '#8b5cf6',
   'Work Expenses': '#64748b',
   'Moving': '#ea580c',
-  'Fidelity': '#15803d',
+  'Fidelity': '#0d7377',
 };
 const FALLBACK_COLORS = [
   '#e11d48', '#0ea5e9', '#84cc16', '#f97316', '#6366f1',
@@ -52,18 +52,46 @@ function getColorForCategory(cat, index) {
   return KNOWN_COLORS[cat] || FALLBACK_COLORS[index % FALLBACK_COLORS.length];
 }
 
+// Colorblind-safe: teal for income, wine for expenses
+const COLOR_INCOME = '#0d7377';
+const COLOR_EXPENSE = '#c92250';
+const COLOR_INCOME_FILL = '#d5e8e8';
+
 function CustomTooltip({ active, payload, label }) {
   if (!active || !payload?.length) return null;
   return (
-    <div className="bg-white border border-stone-200 rounded-lg shadow-lg p-3 text-sm">
+    <div className="bg-white border border-stone-200 rounded-lg shadow-lg p-3 text-sm" role="tooltip">
       <div className="font-medium text-stone-700 mb-1">{label}</div>
       {payload.filter(p => p.value !== 0).map((p, i) => (
         <div key={i} className="flex items-center gap-2">
-          <div className="w-2 h-2 rounded-full" style={{ backgroundColor: p.color }} />
+          <div className="w-2 h-2 rounded-full" style={{ backgroundColor: p.color }} aria-hidden="true" />
           <span className="text-stone-600">{p.name}:</span>
           <span className="num font-medium">{formatCurrency(p.value)}</span>
         </div>
       ))}
+    </div>
+  );
+}
+
+/* Accessible data table — shown to screen readers, hidden visually */
+function AccessibleDataTable({ caption, columns, rows }) {
+  return (
+    <div className="sr-only">
+      <table>
+        <caption>{caption}</caption>
+        <thead>
+          <tr>
+            {columns.map(col => <th key={col} scope="col">{col}</th>)}
+          </tr>
+        </thead>
+        <tbody>
+          {rows.map((row, i) => (
+            <tr key={i}>
+              {columns.map(col => <td key={col}>{row[col] !== undefined ? (typeof row[col] === 'number' ? formatCurrency(row[col]) : row[col]) : '$0.00'}</td>)}
+            </tr>
+          ))}
+        </tbody>
+      </table>
     </div>
   );
 }
@@ -134,7 +162,6 @@ export default function Trends({ data }) {
     const CREDIT_ACCOUNTS = new Set(['wf_credit', 'discover_credit']);
     const ACCT_FIELDS = ['wf_checking', 'wf_credit', 'discover_credit', 'sofi_checking', 'sofi_savings', 'venmo'];
 
-    // Start with snapshot data points
     const points = data.balanceSnapshots
       .filter(s => s.date >= dateFrom && s.date <= dateTo)
       .sort((a, b) => a.date.localeCompare(b.date))
@@ -149,7 +176,6 @@ export default function Trends({ data }) {
         'Total Liquid': (snap.wf_checking || 0) + (snap.sofi_checking || 0) + (snap.sofi_savings || 0) + (snap.venmo || 0),
       }));
 
-    // Add computed "today" point from latest snapshot + transactions since
     const allSnaps = [...data.balanceSnapshots].sort((a, b) => b.date.localeCompare(a.date));
     const latestSnap = allSnaps[0];
     if (latestSnap) {
@@ -162,7 +188,7 @@ export default function Trends({ data }) {
             .filter(t => t.account === field && t.date > latestSnap.date)
             .reduce((s, t) => s + t.amount, 0);
           if (CREDIT_ACCOUNTS.has(field)) {
-            computed[field] = snapVal - txnSum; // charges (negative) increase owed
+            computed[field] = snapVal - txnSum;
           } else {
             computed[field] = snapVal + txnSum;
           }
@@ -201,13 +227,16 @@ export default function Trends({ data }) {
 
       {/* Chart Selector + Account Filter */}
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <div className="flex gap-2">
+        <div className="flex gap-2" role="tablist" aria-label="Chart type">
           {[
             { id: 'spending', label: 'Income vs Spending' },
             { id: 'categories', label: 'Category Breakdown' },
             { id: 'balances', label: 'Account Balances' },
           ].map(tab => (
             <button key={tab.id} onClick={() => setChartType(tab.id)}
+              role="tab"
+              aria-selected={chartType === tab.id}
+              aria-controls={`chart-${tab.id}`}
               className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors
                 ${chartType === tab.id ? 'bg-stone-800 text-white' : 'bg-white text-stone-600 border border-stone-200 hover:bg-stone-50'}`}>
               {tab.label}
@@ -221,34 +250,43 @@ export default function Trends({ data }) {
 
       {/* Income vs Spending */}
       {chartType === 'spending' && (
-        <div className="bg-white rounded-xl border border-stone-200 p-5">
-          <h3 className="text-sm font-semibold text-stone-500 uppercase tracking-wider mb-4">Income vs Expenses</h3>
+        <div className="bg-white rounded-xl border border-stone-200 p-5" id="chart-spending" role="tabpanel">
+          <h3 className="text-sm font-semibold text-stone-600 uppercase tracking-wider mb-4">Income vs Expenses</h3>
           {spendingTrends.length === 0 ? (
-            <div className="p-12 text-center text-stone-400">No data in selected range</div>
+            <div className="p-12 text-center text-stone-500">No data in selected range</div>
           ) : (
             <>
-              <ResponsiveContainer width="100%" height={350}>
-                <BarChart data={spendingTrends} margin={{ top: 5, right: 20, bottom: 5, left: 20 }}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="#e7e5e4" />
-                  <XAxis dataKey="month" tick={{ fontSize: 12, fill: '#78716c' }} />
-                  <YAxis tick={{ fontSize: 12, fill: '#78716c' }} tickFormatter={v => `$${(v/1000).toFixed(0)}k`} />
-                  <Tooltip content={<CustomTooltip />} />
-                  <Legend />
-                  <Bar dataKey="Income" fill="#6b7f5c" radius={[4, 4, 0, 0]} />
-                  <Bar dataKey="Expenses" fill="#c92250" radius={[4, 4, 0, 0]} />
-                </BarChart>
-              </ResponsiveContainer>
-              <div className="mt-4">
-                <h4 className="text-xs text-stone-500 uppercase tracking-wider mb-2">Net (Income − Expenses)</h4>
-                <ResponsiveContainer width="100%" height={150}>
-                  <AreaChart data={spendingTrends} margin={{ top: 5, right: 20, bottom: 5, left: 20 }}>
+              <div role="img" aria-label={`Bar chart showing income versus expenses over ${spendingTrends.length} months`}>
+                <ResponsiveContainer width="100%" height={350}>
+                  <BarChart data={spendingTrends} margin={{ top: 5, right: 20, bottom: 5, left: 20 }}>
                     <CartesianGrid strokeDasharray="3 3" stroke="#e7e5e4" />
-                    <XAxis dataKey="month" tick={{ fontSize: 11, fill: '#78716c' }} />
-                    <YAxis tick={{ fontSize: 11, fill: '#78716c' }} tickFormatter={v => `$${v.toFixed(0)}`} />
+                    <XAxis dataKey="month" tick={{ fontSize: 12, fill: '#57534e' }} />
+                    <YAxis tick={{ fontSize: 12, fill: '#57534e' }} tickFormatter={v => `$${(v/1000).toFixed(0)}k`} />
                     <Tooltip content={<CustomTooltip />} />
-                    <Area type="monotone" dataKey="Net" stroke="#6b7f5c" fill="#e8ebe5" />
-                  </AreaChart>
+                    <Legend />
+                    <Bar dataKey="Income" fill={COLOR_INCOME} radius={[4, 4, 0, 0]} />
+                    <Bar dataKey="Expenses" fill={COLOR_EXPENSE} radius={[4, 4, 0, 0]} />
+                  </BarChart>
                 </ResponsiveContainer>
+              </div>
+              <AccessibleDataTable
+                caption="Income vs Expenses by month"
+                columns={['month', 'Income', 'Expenses', 'Net']}
+                rows={spendingTrends}
+              />
+              <div className="mt-4">
+                <h4 className="text-xs text-stone-600 uppercase tracking-wider mb-2">Net (Income − Expenses)</h4>
+                <div role="img" aria-label="Area chart showing net income over time">
+                  <ResponsiveContainer width="100%" height={150}>
+                    <AreaChart data={spendingTrends} margin={{ top: 5, right: 20, bottom: 5, left: 20 }}>
+                      <CartesianGrid strokeDasharray="3 3" stroke="#e7e5e4" />
+                      <XAxis dataKey="month" tick={{ fontSize: 11, fill: '#57534e' }} />
+                      <YAxis tick={{ fontSize: 11, fill: '#57534e' }} tickFormatter={v => `$${v.toFixed(0)}`} />
+                      <Tooltip content={<CustomTooltip />} />
+                      <Area type="monotone" dataKey="Net" stroke={COLOR_INCOME} fill={COLOR_INCOME_FILL} />
+                    </AreaChart>
+                  </ResponsiveContainer>
+                </div>
               </div>
             </>
           )}
@@ -257,50 +295,68 @@ export default function Trends({ data }) {
 
       {/* Category Breakdown */}
       {chartType === 'categories' && (
-        <div className="bg-white rounded-xl border border-stone-200 p-5">
-          <h3 className="text-sm font-semibold text-stone-500 uppercase tracking-wider mb-4">Variable Expenses by Category</h3>
+        <div className="bg-white rounded-xl border border-stone-200 p-5" id="chart-categories" role="tabpanel">
+          <h3 className="text-sm font-semibold text-stone-600 uppercase tracking-wider mb-4">Variable Expenses by Category</h3>
           {categoryTrends.length === 0 ? (
-            <div className="p-12 text-center text-stone-400">No data in selected range</div>
+            <div className="p-12 text-center text-stone-500">No data in selected range</div>
           ) : (
-            <ResponsiveContainer width="100%" height={400}>
-              <BarChart data={categoryTrends} margin={{ top: 5, right: 20, bottom: 5, left: 20 }}>
-                <CartesianGrid strokeDasharray="3 3" stroke="#e7e5e4" />
-                <XAxis dataKey="month" tick={{ fontSize: 12, fill: '#78716c' }} />
-                <YAxis tick={{ fontSize: 12, fill: '#78716c' }} tickFormatter={v => `$${v.toFixed(0)}`} />
-                <Tooltip content={<CustomTooltip />} />
-                <Legend />
-                {activeCategories.map((cat, i) => (
-                  <Bar key={cat} dataKey={cat} stackId="a" fill={getColorForCategory(cat, i)} />
-                ))}
-              </BarChart>
-            </ResponsiveContainer>
+            <>
+              <div role="img" aria-label={`Stacked bar chart showing expenses by category over ${categoryTrends.length} months`}>
+                <ResponsiveContainer width="100%" height={400}>
+                  <BarChart data={categoryTrends} margin={{ top: 5, right: 20, bottom: 5, left: 20 }}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="#e7e5e4" />
+                    <XAxis dataKey="month" tick={{ fontSize: 12, fill: '#57534e' }} />
+                    <YAxis tick={{ fontSize: 12, fill: '#57534e' }} tickFormatter={v => `$${v.toFixed(0)}`} />
+                    <Tooltip content={<CustomTooltip />} />
+                    <Legend />
+                    {activeCategories.map((cat, i) => (
+                      <Bar key={cat} dataKey={cat} stackId="a" fill={getColorForCategory(cat, i)} />
+                    ))}
+                  </BarChart>
+                </ResponsiveContainer>
+              </div>
+              <AccessibleDataTable
+                caption="Variable expenses by category and month"
+                columns={['month', ...activeCategories]}
+                rows={categoryTrends}
+              />
+            </>
           )}
         </div>
       )}
 
       {/* Balance Trends */}
       {chartType === 'balances' && (
-        <div className="bg-white rounded-xl border border-stone-200 p-5">
-          <h3 className="text-sm font-semibold text-stone-500 uppercase tracking-wider mb-4">Account Balances Over Time</h3>
+        <div className="bg-white rounded-xl border border-stone-200 p-5" id="chart-balances" role="tabpanel">
+          <h3 className="text-sm font-semibold text-stone-600 uppercase tracking-wider mb-4">Account Balances Over Time</h3>
           {balanceTrends.length === 0 ? (
-            <div className="p-12 text-center text-stone-400">Add balance snapshots to see trends</div>
+            <div className="p-12 text-center text-stone-500">Add balance snapshots to see trends</div>
           ) : (
-            <ResponsiveContainer width="100%" height={400}>
-              <LineChart data={balanceTrends} margin={{ top: 5, right: 20, bottom: 5, left: 20 }}>
-                <CartesianGrid strokeDasharray="3 3" stroke="#e7e5e4" />
-                <XAxis dataKey="date" tick={{ fontSize: 12, fill: '#78716c' }} />
-                <YAxis tick={{ fontSize: 12, fill: '#78716c' }} tickFormatter={v => `$${(v/1000).toFixed(1)}k`} />
-                <Tooltip content={<CustomTooltip />} />
-                <Legend />
-                <Line type="monotone" dataKey="WF Checking" stroke="#d4702e" strokeWidth={2} dot={{ r: 3 }} />
-                <Line type="monotone" dataKey="WF Credit" stroke="#c92250" strokeWidth={2} dot={{ r: 3 }} strokeDasharray="4 4" />
-                <Line type="monotone" dataKey="Discover Credit" stroke="#a91843" strokeWidth={2} dot={{ r: 3 }} strokeDasharray="4 4" />
-                <Line type="monotone" dataKey="SoFi Checking" stroke="#6b7f5c" strokeWidth={2} dot={{ r: 3 }} />
-                <Line type="monotone" dataKey="SoFi Savings" stroke="#2563eb" strokeWidth={2} dot={{ r: 3 }} />
-                <Line type="monotone" dataKey="Venmo" stroke="#008CFF" strokeWidth={2} dot={{ r: 3 }} />
-                <Line type="monotone" dataKey="Total Liquid" stroke="#292524" strokeWidth={2.5} dot={{ r: 3 }} strokeDasharray="5 5" />
-              </LineChart>
-            </ResponsiveContainer>
+            <>
+              <div role="img" aria-label="Line chart showing account balances over time">
+                <ResponsiveContainer width="100%" height={400}>
+                  <LineChart data={balanceTrends} margin={{ top: 5, right: 20, bottom: 5, left: 20 }}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="#e7e5e4" />
+                    <XAxis dataKey="date" tick={{ fontSize: 12, fill: '#57534e' }} />
+                    <YAxis tick={{ fontSize: 12, fill: '#57534e' }} tickFormatter={v => `$${(v/1000).toFixed(1)}k`} />
+                    <Tooltip content={<CustomTooltip />} />
+                    <Legend />
+                    <Line type="monotone" dataKey="WF Checking" stroke="#d4702e" strokeWidth={2} dot={{ r: 3 }} />
+                    <Line type="monotone" dataKey="WF Credit" stroke="#c92250" strokeWidth={2} dot={{ r: 3 }} strokeDasharray="4 4" />
+                    <Line type="monotone" dataKey="Discover Credit" stroke="#a91843" strokeWidth={2} dot={{ r: 3 }} strokeDasharray="4 4" />
+                    <Line type="monotone" dataKey="SoFi Checking" stroke="#0d7377" strokeWidth={2} dot={{ r: 3 }} />
+                    <Line type="monotone" dataKey="SoFi Savings" stroke="#2563eb" strokeWidth={2} dot={{ r: 3 }} />
+                    <Line type="monotone" dataKey="Venmo" stroke="#008CFF" strokeWidth={2} dot={{ r: 3 }} />
+                    <Line type="monotone" dataKey="Total Liquid" stroke="#292524" strokeWidth={2.5} dot={{ r: 3 }} strokeDasharray="5 5" />
+                  </LineChart>
+                </ResponsiveContainer>
+              </div>
+              <AccessibleDataTable
+                caption="Account balances over time"
+                columns={['date', 'WF Checking', 'WF Credit', 'Discover Credit', 'SoFi Checking', 'SoFi Savings', 'Venmo', 'Total Liquid']}
+                rows={balanceTrends}
+              />
+            </>
           )}
         </div>
       )}

@@ -140,7 +140,7 @@ export default function TransactionReview({ data, onUpdate }) {
     <div className="space-y-6">
       {/* Import */}
       <div className="bg-white rounded-xl border border-stone-200 p-5">
-        <h3 className="text-sm font-semibold text-stone-500 uppercase tracking-wider mb-4">Import Transactions</h3>
+        <h3 className="text-sm font-semibold text-stone-600 uppercase tracking-wider mb-4">Import Transactions</h3>
         <div className="flex flex-wrap items-end gap-3">
           <div>
             <label className="block text-xs text-stone-500 mb-1">Account</label>
@@ -174,13 +174,15 @@ export default function TransactionReview({ data, onUpdate }) {
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div className="flex flex-wrap items-center gap-2">
           <AccountFilter selected={filterAccounts} onChange={setFilterAccounts} />
-          <select value={filterReviewed} onChange={e => setFilterReviewed(e.target.value)}
+          <label className="sr-only" htmlFor="filter-review-status">Filter by review status</label>
+          <select id="filter-review-status" value={filterReviewed} onChange={e => setFilterReviewed(e.target.value)}
             className="px-3 py-1.5 border border-stone-200 rounded-lg text-sm bg-white">
             <option value="all">All</option>
             <option value="unreviewed">Unreviewed</option>
             <option value="reviewed">Reviewed</option>
           </select>
-          <select value={filterCategory} onChange={e => setFilterCategory(e.target.value)}
+          <label className="sr-only" htmlFor="filter-category">Filter by category</label>
+          <select id="filter-category" value={filterCategory} onChange={e => setFilterCategory(e.target.value)}
             className="px-3 py-1.5 border border-stone-200 rounded-lg text-sm bg-white">
             <option value="all">All Categories</option>
             <option value="uncategorized">Uncategorized</option>
@@ -218,15 +220,15 @@ export default function TransactionReview({ data, onUpdate }) {
             {data.transactions.length === 0 ? 'Import a CSV to get started' : 'No transactions match your filters'}
           </div>
         ) : (
-          <table className="w-full">
+          <table className="w-full" aria-label="Transactions">
             <thead>
-              <tr className="text-xs text-stone-500 uppercase tracking-wider border-b border-stone-100">
-                <th className="text-left p-3 font-semibold">Date</th>
-                <th className="text-left p-3 font-semibold">Description</th>
-                <th className="text-left p-3 font-semibold">Account</th>
-                <th className="text-right p-3 font-semibold">Amount</th>
-                <th className="text-left p-3 font-semibold w-52">Category</th>
-                <th className="text-center p-3 font-semibold w-20">Actions</th>
+              <tr className="text-xs text-stone-600 uppercase tracking-wider border-b border-stone-100">
+                <th scope="col" className="text-left p-3 font-semibold">Date</th>
+                <th scope="col" className="text-left p-3 font-semibold">Description</th>
+                <th scope="col" className="text-left p-3 font-semibold">Account</th>
+                <th scope="col" className="text-right p-3 font-semibold">Amount</th>
+                <th scope="col" className="text-left p-3 font-semibold w-52">Category</th>
+                <th scope="col" className="text-center p-3 font-semibold w-20">Actions</th>
               </tr>
             </thead>
             <tbody>
@@ -251,7 +253,7 @@ export default function TransactionReview({ data, onUpdate }) {
                   </td>
                   <td className="p-3 relative">
                     <div className="flex items-center gap-1">
-                      <select value={txn.category || ''}
+                      <select aria-label={`Category for ${txn.description}`} value={txn.category || ''}
                         onChange={e => {
                           const cat = e.target.value || null;
                           updateTransaction(txn.id, { category: cat });
@@ -276,7 +278,8 @@ export default function TransactionReview({ data, onUpdate }) {
                             setApplyAllMenu(applyAllMenu?.txnId === txn.id ? null : { txnId: txn.id, txn, category: txn.category, exactCount, merchantCount });
                           }
                         }}
-                          className="p-1 rounded text-stone-400 hover:text-clay-600 hover:bg-clay-50 transition-colors"
+                          className="p-1 rounded text-stone-500 hover:text-clay-600 hover:bg-clay-50 transition-colors"
+                          aria-label="Apply category to similar transactions"
                           title="Apply to similar transactions">
                           <Copy size={14} />
                         </button>
@@ -313,16 +316,19 @@ export default function TransactionReview({ data, onUpdate }) {
                     <div className="flex items-center justify-center gap-1">
                       {!txn.reviewed ? (
                         <button onClick={() => updateTransaction(txn.id, { reviewed: true })} disabled={!txn.category}
-                          className={`p-1 rounded transition-colors ${txn.category ? 'text-sage-600 hover:bg-sage-100' : 'text-stone-300 cursor-not-allowed'}`}
+                          className={`p-1 rounded transition-colors ${txn.category ? 'text-sage-600 hover:bg-sage-100' : 'text-stone-400 cursor-not-allowed'}`}
+                          aria-label="Mark reviewed"
                           title="Mark reviewed">
-                          <Check size={16} />
+                          <Check size={16} aria-hidden="true" />
                         </button>
                       ) : (
-                        <span className="p-1 text-sage-500"><CheckCheck size={16} /></span>
+                        <span className="p-1 text-sage-500" aria-label="Reviewed"><CheckCheck size={16} aria-hidden="true" /></span>
                       )}
                       <button onClick={() => onUpdate({ ...data, transactions: data.transactions.filter(t => t.id !== txn.id) })}
-                        className="p-1 rounded text-stone-300 hover:text-wine-500 hover:bg-wine-50 transition-colors" title="Delete">
-                        <X size={14} />
+                        className="p-1 rounded text-stone-400 hover:text-wine-500 hover:bg-wine-50 transition-colors"
+                        aria-label={`Delete transaction: ${txn.description}`}
+                        title="Delete">
+                        <X size={14} aria-hidden="true" />
                       </button>
                     </div>
                   </td>

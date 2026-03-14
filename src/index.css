@@ -53,8 +53,37 @@
   font-size: 0.9em;
 }
 
-.num-pos { color: #556648; }
+/* Colorblind-safe: teal (blue-shifted) for positive, wine for negative */
+.num-pos { color: #0d6e6e; }
 .num-neg { color: #c92250; }
+
+/* Screen-reader only utility */
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border-width: 0;
+}
+
+/* Skip to main content link */
+.skip-link {
+  position: absolute;
+  top: -40px;
+  left: 0;
+  background: #292524;
+  color: white;
+  padding: 8px 16px;
+  z-index: 100;
+  font-size: 14px;
+}
+.skip-link:focus {
+  top: 0;
+}
 
 ::-webkit-scrollbar { width: 6px; }
 ::-webkit-scrollbar-track { background: transparent; }

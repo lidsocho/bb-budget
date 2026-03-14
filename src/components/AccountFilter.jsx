@@ -1,10 +1,13 @@
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect, useCallback } from 'react';
 import { ChevronDown } from 'lucide-react';
 import { ACCOUNTS } from '../store';
 
 export default function AccountFilter({ selected, onChange }) {
   const [open, setOpen] = useState(false);
+  const [focusIndex, setFocusIndex] = useState(-1);
   const ref = useRef();
+  const buttonRef = useRef();
+  const listRef = useRef();
 
   // Close on outside click
   useEffect(() => {
@@ -15,6 +18,23 @@ export default function AccountFilter({ selected, onChange }) {
     return () => document.removeEventListener('mousedown', handleClick);
   }, []);
 
+  // Focus management when dropdown opens
+  useEffect(() => {
+    if (open && listRef.current) {
+      setFocusIndex(0);
+    } else {
+      setFocusIndex(-1);
+    }
+  }, [open]);
+
+  // Focus the active item
+  useEffect(() => {
+    if (open && focusIndex >= 0 && listRef.current) {
+      const items = listRef.current.querySelectorAll('[role="option"]');
+      items[focusIndex]?.focus();
+    }
+  }, [focusIndex, open]);
+
   const allSelected = selected.length === ACCOUNTS.length;
   const creditAccounts = ACCOUNTS.filter(a => a.type === 'credit').map(a => a.id);
   const creditOnly = selected.length === creditAccounts.length && creditAccounts.every(id => selected.includes(id));
@@ -22,7 +42,7 @@ export default function AccountFilter({ selected, onChange }) {
   function toggle(id) {
     if (selected.includes(id)) {
       const next = selected.filter(s => s !== id);
-      onChange(next.length > 0 ? next : ACCOUNTS.map(a => a.id)); // don't allow empty
+      onChange(next.length > 0 ? next : ACCOUNTS.map(a => a.id));
     } else {
       onChange([...selected, id]);
     }
@@ -36,6 +56,47 @@ export default function AccountFilter({ selected, onChange }) {
     onChange(creditAccounts);
   }
 
+  const handleKeyDown = useCallback((e) => {
+    if (!open) {
+      if (e.key === 'ArrowDown' || e.key === 'Enter' || e.key === ' ') {
+        e.preventDefault();
+        setOpen(true);
+      }
+      return;
+    }
+
+    switch (e.key) {
+      case 'Escape':
+        e.preventDefault();
+        setOpen(false);
+        buttonRef.current?.focus();
+        break;
+      case 'ArrowDown':
+        e.preventDefault();
+        setFocusIndex(i => Math.min(i + 1, ACCOUNTS.length - 1));
+        break;
+      case 'ArrowUp':
+        e.preventDefault();
+        setFocusIndex(i => Math.max(i - 1, 0));
+        break;
+      case ' ':
+      case 'Enter':
+        e.preventDefault();
+        if (focusIndex >= 0 && focusIndex < ACCOUNTS.length) {
+          toggle(ACCOUNTS[focusIndex].id);
+        }
+        break;
+      case 'Home':
+        e.preventDefault();
+        setFocusIndex(0);
+        break;
+      case 'End':
+        e.preventDefault();
+        setFocusIndex(ACCOUNTS.length - 1);
+        break;
+    }
+  }, [open, focusIndex, selected]);
+
   const label = allSelected
     ? 'All Accounts'
     : selected.length === 1
@@ -43,13 +104,17 @@ export default function AccountFilter({ selected, onChange }) {
       : `${selected.length} accounts`;
 
   return (
-    <div className="relative" ref={ref}>
+    <div className="relative" ref={ref} onKeyDown={handleKeyDown}>
       <button
+        ref={buttonRef}
         onClick={() => setOpen(!open)}
+        aria-haspopup="listbox"
+        aria-expanded={open}
+        aria-label={`Filter accounts: ${label}`}
         className="flex items-center gap-2 px-3 py-1.5 border border-stone-200 rounded-lg text-sm bg-white hover:bg-stone-50 transition-colors min-w-[160px]"
       >
         <span className="flex-1 text-left truncate">{label}</span>
-        <ChevronDown size={14} className={`text-stone-400 transition-transform ${open ? 'rotate-180' : ''}`} />
+        <ChevronDown size={14} aria-hidden="true" className={`text-stone-500 transition-transform ${open ? 'rotate-180' : ''}`} />
       </button>
 
       {open && (
@@ -72,35 +137,43 @@ export default function AccountFilter({ selected, onChange }) {
             </button>
           </div>
 
-          {/* Account checkboxes */}
-          {ACCOUNTS.map(acct => {
-            const checked = selected.includes(acct.id);
-            return (
-              <label
-                key={acct.id}
-                className="flex items-center gap-3 px-3 py-2 hover:bg-stone-50 cursor-pointer"
-              >
-                <input
-                  type="checkbox"
-                  checked={checked}
-                  onChange={() => toggle(acct.id)}
-                  className="rounded border-stone-300 text-sage-600 focus:ring-sage-500 w-4 h-4"
-                />
-                <span className={`flex items-center gap-2 text-sm ${checked ? 'text-stone-800' : 'text-stone-400'}`}>
-                  <span className={`w-2 h-2 rounded-full
-                    ${acct.id === 'wf_credit' ? 'bg-wine-400' :
-                      acct.id === 'discover_credit' ? 'bg-clay-500' :
-                      acct.id === 'wf_checking' ? 'bg-stone-400' :
-                      acct.id === 'sofi_checking' ? 'bg-sage-500' :
-                      acct.id === 'sofi_savings' ? 'bg-blue-500' :
-                      acct.id === 'venmo' ? 'bg-blue-400' :
-                      'bg-stone-400'}`}
+          {/* Account options */}
+          <div role="listbox" aria-label="Account filter options" aria-multiselectable="true" ref={listRef}>
+            {ACCOUNTS.map((acct, index) => {
+              const checked = selected.includes(acct.id);
+              return (
+                <div
+                  key={acct.id}
+                  role="option"
+                  aria-selected={checked}
+                  tabIndex={focusIndex === index ? 0 : -1}
+                  onClick={() => toggle(acct.id)}
+                  className={`flex items-center gap-3 px-3 py-2 hover:bg-stone-50 cursor-pointer ${focusIndex === index ? 'bg-stone-50' : ''}`}
+                >
+                  <input
+                    type="checkbox"
+                    checked={checked}
+                    onChange={() => toggle(acct.id)}
+                    tabIndex={-1}
+                    aria-hidden="true"
+                    className="rounded border-stone-300 text-sage-600 focus:ring-sage-500 w-4 h-4"
                   />
-                  {acct.label}
-                </span>
-              </label>
-            );
-          })}
+                  <span className={`flex items-center gap-2 text-sm ${checked ? 'text-stone-800' : 'text-stone-500'}`}>
+                    <span aria-hidden="true" className={`w-2 h-2 rounded-full
+                      ${acct.id === 'wf_credit' ? 'bg-wine-400' :
+                        acct.id === 'discover_credit' ? 'bg-clay-500' :
+                        acct.id === 'wf_checking' ? 'bg-stone-400' :
+                        acct.id === 'sofi_checking' ? 'bg-sage-500' :
+                        acct.id === 'sofi_savings' ? 'bg-blue-500' :
+                        acct.id === 'venmo' ? 'bg-blue-400' :
+                        'bg-stone-400'}`}
+                    />
+                    {acct.label}
+                  </span>
+                </div>
+              );
+            })}
+          </div>
         </div>
       )}
     </div>

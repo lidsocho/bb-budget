@@ -168,7 +168,7 @@ export default function Balances({ data, onUpdate }) {
       {/* Computed Current Balances */}
       {computed ? (
         <>
-          <div className="flex items-center gap-2 text-xs text-stone-400">
+          <div className="flex items-center gap-2 text-xs text-stone-500">
             <Info size={12} />
             <span>
               Computed from snapshot on <span className="font-medium text-stone-500">{baseSnap.date}</span>
@@ -189,7 +189,7 @@ export default function Balances({ data, onUpdate }) {
                   </div>
                   <DeltaBadge delta={acct.isCredit ? -acct.txnDelta : acct.txnDelta} />
                   {acct.txnCount > 0 && (
-                    <div className="text-[10px] text-stone-400 mt-0.5">
+                    <div className="text-[10px] text-stone-500 mt-0.5">
                       {acct.txnCount} txn{acct.txnCount !== 1 ? 's' : ''} since snapshot
                     </div>
                   )}
@@ -204,15 +204,15 @@ export default function Balances({ data, onUpdate }) {
           </div>
         </>
       ) : (
-        <div className="bg-white rounded-xl border border-stone-200 p-8 text-center text-stone-400">
+        <div className="bg-white rounded-xl border border-stone-200 p-8 text-center text-stone-500">
           Add a balance snapshot to start tracking. Current balances will be computed from the snapshot + imported transactions.
         </div>
       )}
 
       {/* Add Snapshot */}
       <div className="bg-white rounded-xl border border-stone-200 p-5">
-        <h3 className="text-sm font-semibold text-stone-500 uppercase tracking-wider mb-2">Log Balance Snapshot</h3>
-        <p className="text-xs text-stone-400 mb-4">
+        <h3 className="text-sm font-semibold text-stone-600 uppercase tracking-wider mb-2">Log Balance Snapshot</h3>
+        <p className="text-xs text-stone-500 mb-4">
           Enter your actual account balances as of a specific date. The app will then add/subtract all imported transactions after that date to compute your current balances.
           For best accuracy, log a new snapshot whenever you start a fresh import cycle.
         </p>
@@ -269,19 +269,19 @@ export default function Balances({ data, onUpdate }) {
       {/* Snapshot History */}
       <div className="bg-white rounded-xl border border-stone-200 overflow-hidden">
         <div className="p-4 border-b border-stone-100 space-y-3">
-          <h3 className="text-sm font-semibold text-stone-500 uppercase tracking-wider">Snapshot History</h3>
+          <h3 className="text-sm font-semibold text-stone-600 uppercase tracking-wider">Snapshot History</h3>
           <DateRangeFilter from={historyFrom} to={historyTo}
             onChange={(f, t) => { setHistoryFrom(f); setHistoryTo(t); }} />
         </div>
         {(() => {
           const filteredSnaps = snapshots.filter(s => s.date >= historyFrom && s.date <= historyTo);
           return filteredSnaps.length === 0 ? (
-            <div className="p-12 text-center text-stone-400">No snapshots in this range</div>
+            <div className="p-12 text-center text-stone-500">No snapshots in this range</div>
           ) : (
-            <table className="w-full">
+            <table className="w-full" aria-label="Balance snapshot history">
               <thead>
-                <tr className="text-xs text-stone-500 uppercase tracking-wider border-b border-stone-100">
-                  <th className="text-left p-3 font-semibold">Date</th>
+                <tr className="text-xs text-stone-600 uppercase tracking-wider border-b border-stone-100">
+                  <th scope="col" className="text-left p-3 font-semibold">Date</th>
                   <th className="text-right p-3 font-semibold">WF Checking</th>
                   <th className="text-right p-3 font-semibold">WF Credit</th>
                   <th className="text-right p-3 font-semibold">Discover</th>
@@ -309,8 +309,9 @@ export default function Balances({ data, onUpdate }) {
                     <td className="p-3 text-center">
                       {!snap.isAuto && (
                         <button onClick={() => deleteSnapshot(snap.id)}
-                          className="p-1 rounded text-stone-300 hover:text-wine-500 hover:bg-wine-50 transition-colors">
-                          <Trash2 size={14} />
+                          aria-label={`Delete snapshot from ${snap.date}`}
+                          className="p-1 rounded text-stone-500 hover:text-wine-500 hover:bg-wine-50 transition-colors">
+                          <Trash2 size={14} aria-hidden="true" />
                         </button>
                       )}
                     </td>

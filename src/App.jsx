@@ -26,15 +26,17 @@ function App() {
 
   return (
     <div className="min-h-screen bg-stone-50">
+      <a href="#main-content" className="skip-link">Skip to main content</a>
+
       {/* Header */}
       <header className="bg-white border-b border-stone-200">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex items-center justify-between h-14">
             <div className="flex items-center gap-3">
               <span className="text-lg font-bold text-stone-800 tracking-tight">Bb Budget</span>
-              <span className="text-xs text-stone-400 hidden sm:inline">by Lidia</span>
+              <span className="text-xs text-stone-500 hidden sm:inline">by Lidia</span>
             </div>
-            <div className="text-xs num text-stone-400">
+            <div className="text-xs num text-stone-500" aria-live="polite">
               {data.transactions.length} transactions
             </div>
           </div>
@@ -42,22 +44,26 @@ function App() {
       </header>
 
       {/* Navigation */}
-      <nav className="bg-white border-b border-stone-100 sticky top-0 z-10">
+      <nav className="bg-white border-b border-stone-100 sticky top-0 z-10" aria-label="Main navigation">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex gap-0.5 -mb-px overflow-x-auto">
+          <div className="flex gap-0.5 -mb-px overflow-x-auto" role="tablist" aria-label="App sections">
             {TABS.map(tab => {
               const Icon = tab.icon;
               const active = activeTab === tab.id;
               return (
                 <button
                   key={tab.id}
+                  role="tab"
+                  aria-selected={active}
+                  aria-controls={`tabpanel-${tab.id}`}
+                  id={`tab-${tab.id}`}
                   onClick={() => setActiveTab(tab.id)}
                   className={`flex items-center gap-2 px-4 py-3 text-sm font-medium border-b-2 transition-colors whitespace-nowrap
-                    ${active 
-                      ? 'border-stone-800 text-stone-800' 
-                      : 'border-transparent text-stone-500 hover:text-stone-700 hover:border-stone-300'}`}
+                    ${active
+                      ? 'border-stone-800 text-stone-800'
+                      : 'border-transparent text-stone-600 hover:text-stone-700 hover:border-stone-300'}`}
                 >
-                  <Icon size={16} />
+                  <Icon size={16} aria-hidden="true" />
                   {tab.label}
                 </button>
               );
@@ -67,7 +73,8 @@ function App() {
       </nav>
 
       {/* Content */}
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+      <main id="main-content" className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6"
+        role="tabpanel" aria-labelledby={`tab-${activeTab}`}>
         {activeTab === 'review' && <TransactionReview data={data} onUpdate={handleUpdate} />}
         {activeTab === 'summary' && <MonthlySummary data={data} onUpdate={handleUpdate} />}
         {activeTab === 'trends' && <Trends data={data} />}

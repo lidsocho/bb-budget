@@ -54,13 +54,14 @@ function EditableCategoryName({ name, onRename }) {
 
   if (editing) {
     return (
-      <div className="flex items-center gap-1">
-        <input ref={inputRef} value={value} onChange={e => setValue(e.target.value)}
+      <div className="flex items-center gap-1" role="group" aria-label={`Rename ${name}`}>
+        <label className="sr-only" htmlFor={`rename-${name}`}>New name for {name}</label>
+        <input id={`rename-${name}`} ref={inputRef} value={value} onChange={e => setValue(e.target.value)}
           onKeyDown={e => { if (e.key === 'Enter') save(); if (e.key === 'Escape') cancel(); }}
           className="text-sm px-1.5 py-0.5 border border-sage-300 rounded bg-white w-40 focus:outline-none focus:ring-1 focus:ring-sage-400"
         />
-        <button onClick={save} className="p-0.5 text-sage-600 hover:text-sage-800"><Check size={13} /></button>
-        <button onClick={cancel} className="p-0.5 text-stone-400 hover:text-stone-600"><X size={13} /></button>
+        <button onClick={save} aria-label="Save name" className="p-0.5 text-sage-600 hover:text-sage-800"><Check size={13} aria-hidden="true" /></button>
+        <button onClick={cancel} aria-label="Cancel rename" className="p-0.5 text-stone-500 hover:text-stone-600"><X size={13} aria-hidden="true" /></button>
       </div>
     );
   }
@@ -69,8 +70,9 @@ function EditableCategoryName({ name, onRename }) {
     <div className="flex items-center gap-1 group">
       <span className="text-sm text-stone-700">{name}</span>
       <button onClick={() => setEditing(true)}
-        className="p-0.5 rounded text-stone-300 opacity-0 group-hover:opacity-100 hover:text-stone-500 transition-opacity">
-        <Pencil size={12} />
+        aria-label={`Rename ${name}`}
+        className="p-0.5 rounded text-stone-500 opacity-0 group-hover:opacity-100 focus:opacity-100 hover:text-stone-600 transition-opacity">
+        <Pencil size={12} aria-hidden="true" />
       </button>
     </div>
   );
@@ -97,7 +99,7 @@ function AddBudgetRow({ categories, existingBudgets, onAdd }) {
   if (!open) {
     return available.length > 0 ? (
       <button onClick={() => setOpen(true)}
-        className="flex items-center gap-1.5 text-xs text-stone-400 hover:text-sage-600 transition-colors mt-2">
+        className="flex items-center gap-1.5 text-xs text-stone-500 hover:text-sage-600 transition-colors mt-2">
         <Plus size={14} /> Add budget target
       </button>
     ) : null;
@@ -105,23 +107,27 @@ function AddBudgetRow({ categories, existingBudgets, onAdd }) {
 
   return (
     <div className="flex items-center gap-2 mt-2 pt-2 border-t border-stone-100">
-      <select value={selectedCat} onChange={e => setSelectedCat(e.target.value)}
+      <label className="sr-only" htmlFor="budget-category-select">Category for new budget</label>
+      <select id="budget-category-select" value={selectedCat} onChange={e => setSelectedCat(e.target.value)}
         className="text-xs px-2 py-1.5 border border-stone-200 rounded-lg bg-white flex-1">
         <option value="">Category...</option>
         {available.map(c => <option key={c} value={c}>{c}</option>)}
       </select>
-      <input type="number" step="1" placeholder="$/mo" value={amount}
+      <label className="sr-only" htmlFor="budget-amount-input">Monthly budget amount</label>
+      <input id="budget-amount-input" type="number" step="1" placeholder="$/mo" value={amount}
+        aria-label="Monthly budget amount in dollars"
         onChange={e => setAmount(e.target.value)}
         onKeyDown={e => { if (e.key === 'Enter') submit(); }}
         className="num text-xs px-2 py-1.5 border border-stone-200 rounded-lg w-20"
       />
-      <button onClick={submit}
+      <button onClick={submit} aria-label="Add budget target"
         className="p-1.5 bg-sage-600 text-white rounded-lg hover:bg-sage-700 transition-colors">
-        <Check size={13} />
+        <Check size={13} aria-hidden="true" />
       </button>
       <button onClick={() => { setOpen(false); setSelectedCat(''); setAmount(''); }}
-        className="p-1.5 text-stone-400 hover:text-stone-600">
-        <X size={13} />
+        aria-label="Cancel adding budget"
+        className="p-1.5 text-stone-500 hover:text-stone-600">
+        <X size={13} aria-hidden="true" />
       </button>
     </div>
   );
@@ -246,12 +252,12 @@ export default function MonthlySummary({ data, onUpdate }) {
           <div className="px-4 py-2 bg-white border border-stone-200 rounded-xl text-center">
             <div className="text-xs text-stone-500 mb-0.5">Income</div>
             <div className="num num-pos font-semibold">{formatCurrency(summary.totalIncome)}</div>
-            {showAvg && <div className="num text-xs text-stone-400">{formatCurrency(summary.totalIncome / summary.monthSpan)}/mo</div>}
+            {showAvg && <div className="num text-xs text-stone-500">{formatCurrency(summary.totalIncome / summary.monthSpan)}/mo</div>}
           </div>
           <div className="px-4 py-2 bg-white border border-stone-200 rounded-xl text-center">
             <div className="text-xs text-stone-500 mb-0.5">Expenses</div>
             <div className="num num-neg font-semibold">{formatCurrency(summary.totalExpenses)}</div>
-            {showAvg && <div className="num text-xs text-stone-400">{formatCurrency(summary.totalExpenses / summary.monthSpan)}/mo</div>}
+            {showAvg && <div className="num text-xs text-stone-500">{formatCurrency(summary.totalExpenses / summary.monthSpan)}/mo</div>}
           </div>
           <div className={`px-4 py-2 border rounded-xl text-center
             ${summary.net >= 0 ? 'bg-sage-50 border-sage-200' : 'bg-wine-50 border-wine-200'}`}>
@@ -259,7 +265,7 @@ export default function MonthlySummary({ data, onUpdate }) {
             <div className={`num font-bold ${summary.net >= 0 ? 'num-pos' : 'num-neg'}`}>
               {formatCurrency(summary.net)}
             </div>
-            {showAvg && <div className="num text-xs text-stone-400">{formatCurrency(summary.net / summary.monthSpan)}/mo</div>}
+            {showAvg && <div className="num text-xs text-stone-500">{formatCurrency(summary.net / summary.monthSpan)}/mo</div>}
           </div>
         </div>
       </div>
@@ -268,7 +274,7 @@ export default function MonthlySummary({ data, onUpdate }) {
         {/* Variable Expenses */}
         <div className="bg-white rounded-xl border border-stone-200 p-5">
           <div className="flex items-center justify-between mb-4">
-            <h3 className="text-sm font-semibold text-stone-500 uppercase tracking-wider">Variable Expenses</h3>
+            <h3 className="text-sm font-semibold text-stone-600 uppercase tracking-wider">Variable Expenses</h3>
             <span className="num font-semibold text-stone-700">{formatCurrency(summary.variableTotal)}</span>
           </div>
           <div className="space-y-3">
@@ -286,10 +292,11 @@ export default function MonthlySummary({ data, onUpdate }) {
                       </span>
                       {budget > 0 && (
                         <>
-                          <span className="num text-xs text-stone-400">/ {formatCurrency(budget)}</span>
+                          <span className="num text-xs text-stone-500">/ {formatCurrency(budget)}</span>
                           <button onClick={() => removeBudget(cat)}
-                            className="p-0.5 text-stone-300 hover:text-wine-500 transition-colors">
-                            <Trash2 size={12} />
+                            aria-label={`Remove budget for ${cat}`}
+                            className="p-0.5 text-stone-500 hover:text-wine-500 transition-colors">
+                            <Trash2 size={12} aria-hidden="true" />
                           </button>
                         </>
                       )}
@@ -303,7 +310,7 @@ export default function MonthlySummary({ data, onUpdate }) {
             {(() => {
               const zeroSpend = variableCategories.filter(cat => !summary.variableTotals[cat] && !data.budgetTargets[cat]);
               return zeroSpend.length > 0 && (
-                <div className="text-xs text-stone-400 pt-1">
+                <div className="text-xs text-stone-500 pt-1">
                   No spending: {zeroSpend.join(', ')}
                 </div>
               );
@@ -315,7 +322,7 @@ export default function MonthlySummary({ data, onUpdate }) {
         {/* Fixed Expenses */}
         <div className="bg-white rounded-xl border border-stone-200 p-5">
           <div className="flex items-center justify-between mb-4">
-            <h3 className="text-sm font-semibold text-stone-500 uppercase tracking-wider">Fixed Expenses</h3>
+            <h3 className="text-sm font-semibold text-stone-600 uppercase tracking-wider">Fixed Expenses</h3>
             <span className="num font-semibold text-stone-700">{formatCurrency(summary.fixedTotal)}</span>
           </div>
           <div className="space-y-3">
