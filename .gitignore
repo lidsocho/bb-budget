@@ -2,3 +2,12 @@ node_modules
 dist
 .DS_Store
 *.local
+
+# Personal financial data — never commit
+*.csv
+*.pdf
+*.json
+!package.json
+!package-lock.json
+bb-budget-backup-*.json
+*.zip
